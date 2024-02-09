@@ -1,0 +1,23 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id    Int     @default(autoincrement()) @id
+  email String?  @unique
+  name  String?
+  remain_token Int?
+  used_token Int?
+}
+
+model TokenLog {
+  id    Int     @default(autoincrement()) @id
+  user_id Int
+  used_token Int
+  created_at DateTime @default(now())
+}

@@ -5,11 +5,17 @@ import { lastValueFrom, map } from 'rxjs';
 import BasicProxyAdapter from 'src/proxy/adapters/BasicProxyAdapter';
 import openaiConfig from './openai.config';
 import { OpenAiModel } from './types';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
+import { TokenUsagesJobData } from 'src/proxy/token-usage.processor';
+import { AdapterType } from '../Adapters';
 
 @Injectable()
 export default class OpenAiAdapter extends BasicProxyAdapter {
   constructor(
     private readonly httpService: HttpService,
+    @InjectQueue('token-usage')
+    private tokenUsageQueue: Queue<TokenUsagesJobData>,
     @Inject(openaiConfig.KEY) private aiConfig: ConfigType<typeof openaiConfig>,
   ) {
     super();
@@ -48,7 +54,12 @@ export default class OpenAiAdapter extends BasicProxyAdapter {
           // 如果需要，你还可以在这里处理 token 使用量
           const usage = data?.usage?.total_tokens;
           console.log(`This request consumed ${usage} tokens.`);
-
+          this.tokenUsageQueue.add('use', {
+            plateform: AdapterType.OPENAI,
+            userId: '0',
+            time: new Date().getTime(),
+            usage,
+          });
           // 最后，返回你关心的数据
           return data;
         }),

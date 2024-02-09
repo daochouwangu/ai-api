@@ -7,10 +7,16 @@ import { formatRFC7231 } from 'date-fns';
 import * as crypto from 'crypto';
 import sparkConfig from './spark.config';
 import * as WebSocket from 'ws';
+import { Queue } from 'bull';
+import { InjectQueue } from '@nestjs/bull';
+import { AdapterType } from '../Adapters';
+import { TokenUsagesJobData } from 'src/proxy/token-usage.processor';
 @Injectable()
 export default class SparkAiAdapter extends BasicProxyAdapter {
   constructor(
     private readonly httpService: HttpService,
+    @InjectQueue('token-usage')
+    private tokenUsageQueue: Queue<TokenUsagesJobData>,
     @Inject(sparkConfig.KEY) private aiConfig: ConfigType<typeof sparkConfig>,
   ) {
     super();
@@ -105,6 +111,12 @@ export default class SparkAiAdapter extends BasicProxyAdapter {
         console.log(
           `This request consumed ${data.payload.usage.text?.total_tokens} tokens.`,
         );
+        this.tokenUsageQueue.add('use', {
+          plateform: AdapterType.SPARK,
+          userId: '0',
+          time: new Date().getTime(),
+          usage: data.payload.usage.text?.total_tokens,
+        });
       }
       // 解析接收到的消息 是BUFFER
       // 将接收到的消息推送到 Subject 中
